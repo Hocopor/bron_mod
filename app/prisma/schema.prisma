@@ -1,0 +1,196 @@
+// Модуль бронирования — схема БД.
+// Деньги везде в КОПЕЙКАХ (рубли × 100). Менял схему → на деплое нужен `prisma db push`.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ========== ОБЪЕКТЫ (группы номеров) ==========
+
+// «Объект» — группа номеров по адресу/зданию. В шахматке админки — сворачиваемая группа.
+// У каждого объекта свой публичный URL (под свой сайт Tilda).
+model PropertyObject {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?  @db.Text
+  address     String?
+  publicUrl   String?  // куда ведёт «своя» кнопка с сайта Tilda этого объекта
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  rooms       Room[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("property_objects")
+}
+
+// ========== НОМЕРА ==========
+
+model Room {
+  id               String   @id @default(cuid())
+  objectId         String
+  object           PropertyObject @relation(fields: [objectId], references: [id], onDelete: Cascade)
+  name             String
+  slug             String   @unique
+  description      String   @db.Text
+  shortDescription String
+  baseCapacity     Int      @default(1)
+  extraCapacity    Int      @default(0)
+  capacity         Int      // max гостей (base + extra)
+  area             Int?     // м²
+  floor            Int?
+  pricePerDay      Int      // копейки
+  images           String[]
+  amenities        Json     @default("[]") // свободный список строк
+  isActive         Boolean  @default(true)
+  sortOrder        Int      @default(0)
+  bookings         Booking[]
+  blockedDates     BlockedDate[]
+  pricePeriods     RoomPricePeriod[]
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([objectId])
+  @@map("rooms")
+}
+
+model RoomPricePeriod {
+  id          String   @id @default(cuid())
+  roomId      String
+  room        Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  pricePerDay Int      // копейки
+  dateFrom    DateTime
+  dateTo      DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([roomId, dateFrom, dateTo])
+  @@map("room_price_periods")
+}
+
+model BlockedDate {
+  id        String   @id @default(cuid())
+  roomId    String
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  dateFrom  DateTime
+  dateTo    DateTime
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@map("blocked_dates")
+}
+
+// ========== БРОНИРОВАНИЯ ==========
+
+model Booking {
+  id              String   @id @default(cuid())
+  bookingNumber   String   @unique @default(cuid())
+  roomId          String
+  room            Room     @relation(fields: [roomId], references: [id])
+  checkIn         DateTime
+  checkOut        DateTime
+  nights          Int
+  guests          Int
+  hasPets         Boolean  @default(false)
+  petsDescription String?
+  smoking         Boolean  @default(false)
+  // Трансфер
+  transferNeeded  Boolean  @default(false)
+  transferFrom    String?
+  transferDate    DateTime?
+  transferUnknown Boolean  @default(false)
+  // Гость
+  guestName       String
+  guestPhone      String
+  guestEmail      String?
+  comment         String?  @db.Text
+  // Цена (копейки)
+  totalPrice      Int
+  depositAmount   Int
+  depositType     DepositType
+  depositValue    Int      // процент или фикс. сумма в копейках
+  priceBreakdown  Json     @default("[]") // [{date:'YYYY-MM-DD', pricePerDay:number}]
+  // Статус
+  status          BookingStatus @default(PENDING)
+  // Оплата депозита — офлайн, отмечается админом вручную
+  paymentStatus   PaymentStatus @default(UNPAID)
+  paidAt          DateTime?
+  // Отмена
+  cancelledAt        DateTime?
+  cancellationReason String?
+  refundAmount       Int?
+  // Источник
+  source          BookingSource @default(WEBSITE)
+  adminNotes      String?  @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([roomId, checkIn, checkOut])
+  @@map("bookings")
+}
+
+// ========== ДОСТУП (админ + сотрудники) ==========
+
+// Главный супер-админ берётся из env (ADMIN_LOGIN / ADMIN_PASSWORD_HASH).
+// Доп. сотрудники хранятся здесь; пароль — только bcrypt-хэш. STAFF не может менять пароль.
+model AdminUser {
+  id           String   @id @default(cuid())
+  login        String   @unique
+  passwordHash String
+  role         AdminRole @default(STAFF)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("admin_users")
+}
+
+// ========== НАСТРОЙКИ ==========
+
+model Setting {
+  key       String   @id
+  value     String   @db.Text
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}
+
+// ========== ENUMS ==========
+
+enum BookingStatus {
+  PENDING   // Ожидает подтверждения
+  CONFIRMED // Подтверждено
+  CANCELLED // Отменено
+  COMPLETED // Завершено (гость выехал)
+}
+
+enum PaymentStatus {
+  UNPAID
+  DEPOSIT_PAID
+  FULLY_PAID
+  REFUNDED
+  PARTIAL_REFUND
+}
+
+enum DepositType {
+  PERCENT
+  FIXED
+}
+
+enum BookingSource {
+  WEBSITE
+  PHONE
+  ADMIN
+  OTHER
+}
+
+enum AdminRole {
+  ADMIN
+  STAFF
+}

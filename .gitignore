@@ -1,0 +1,38 @@
+# --- Исходный проект-донор (НЕ часть этого репозитория) ---
+# azov-resort лежит рядом только как источник готового модуля бронирования.
+azov-resort/
+
+# --- Node / Next.js ---
+node_modules/
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+
+# --- Env / секреты ---
+.env
+.env.local
+.env*.local
+!.env.example
+
+# --- Prisma ---
+# (миграции коммитим; генерённый клиент — нет)
+**/node_modules/.prisma/
+
+# --- Загрузки пользователей ---
+uploads/
+public/uploads/
+
+# --- Логи / временное ---
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+Thumbs.db
+
+# --- Редакторы ---
+.vscode/
+.idea/
