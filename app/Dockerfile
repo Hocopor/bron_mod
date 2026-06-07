@@ -56,6 +56,11 @@ COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 COPY --from=builder /app/node_modules/.bin ./node_modules/.bin
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+# sharp + нативные бинарники libvips: трейсинг Next standalone их пропускает
+# (особенно @img/sharp-libvips-*), без них трансформация картинок падает.
+COPY --from=builder /app/node_modules/sharp ./node_modules/sharp
+COPY --from=builder /app/node_modules/@img ./node_modules/@img
+COPY --from=builder /app/scripts ./scripts
 COPY docker-entrypoint.sh ./
 
 RUN chmod +x docker-entrypoint.sh \

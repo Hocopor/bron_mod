@@ -14,7 +14,7 @@
 }
 
 # --- 2. Админка (отдельный домен, обычный сертификат) ---
-admin.example.ru {
+admin.example.mak-o.ru {
 	request_body {
 		max_size 25MB
 	}

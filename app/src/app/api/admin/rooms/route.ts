@@ -2,17 +2,22 @@ import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { verifyAdminRequest } from '@/lib/admin-auth'
 import { prisma } from '@/lib/db'
+import { randomBytes } from 'crypto'
 
 export const dynamic = 'force-dynamic'
 
-function slugify(input: string): string {
-  return input
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9а-яё\s-]/gi, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .slice(0, 60) || `room-${Date.now()}`
+// Slug номера генерируется автоматически и НЕ зависит от названия:
+// название бывает русским, а кириллица в URL percent-кодируется и ломает
+// ссылки/совпадение. Делаем короткий гарантированно-ASCII идентификатор
+// и проверяем его уникальность в БД.
+async function generateUniqueRoomSlug(): Promise<string> {
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const slug = `room-${randomBytes(5).toString('hex')}`
+    const exists = await prisma.room.findUnique({ where: { slug } })
+    if (!exists) return slug
+  }
+  // Крайне маловероятно: добираем уникальность временной меткой.
+  return `room-${Date.now().toString(36)}-${randomBytes(3).toString('hex')}`
 }
 
 // Создание номера. Номер обязательно принадлежит Объекту (objectId).
@@ -34,10 +39,8 @@ export async function POST(req: NextRequest) {
   const name = String(body.name || '').trim() || 'Новый номер'
   const capacity = Math.max(1, Number.parseInt(String(body.capacity ?? 1), 10) || 1)
 
-  // slug генерируется автоматически из названия (пользователь его не задаёт).
-  let slug = slugify(name)
-  const exists = await prisma.room.findUnique({ where: { slug } })
-  if (exists) slug = `${slug}-${Date.now().toString(36).slice(-4)}`
+  // slug генерируется автоматически (ASCII, не из названия — см. выше).
+  const slug = await generateUniqueRoomSlug()
 
   const room = await prisma.room.create({
     data: {
