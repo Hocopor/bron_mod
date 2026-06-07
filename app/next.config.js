@@ -14,6 +14,15 @@ const nextConfig = {
     serverComponentsExternalPackages: ['@prisma/client', 'bcryptjs'],
     optimizePackageImports: ['lucide-react', 'date-fns'],
   },
+  async rewrites() {
+    // Роут /uploads/[...path] не попадает в Next standalone из-за нативного sharp.
+    // Переносим логику в /api/uploads/ (API-роуты гарантированно трейсятся)
+    // и проксируем через rewrite — URL в БД и src картинок менять не нужно.
+    return [
+      { source: '/uploads/:path*', destination: '/api/uploads/:path*' },
+    ]
+  },
+
   async headers() {
     return [
       {
