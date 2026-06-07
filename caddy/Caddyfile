@@ -1,0 +1,33 @@
+# Caddy для модуля бронирования на VPS.
+# Два поддомена → одно Next.js-приложение (127.0.0.1:3000):
+#   booking.example.ru — публичная витрина (карточки/страницы номеров, бронирование)
+#   admin.example.ru   — админка (middleware.ts пускает сюда только /admin и /api/admin)
+#
+# Замените example.ru на свой домен и впишите email для Let's Encrypt.
+# Caddy сам выпускает и продлевает TLS-сертификаты (HTTPS из коробки) —
+# отдельный certbot не нужен. Host передаётся в апстрим как есть,
+# поэтому middleware корректно различает поддомены по Host.
+
+{
+	# email для уведомлений Let's Encrypt (необязательно, но желательно)
+	email admin@example.ru
+}
+
+# Общие настройки проксирования для обоих поддоменов.
+(bron_proxy) {
+	# Загрузка фото номеров — поднимаем лимит тела запроса.
+	request_body {
+		max_size 25MB
+	}
+	reverse_proxy 127.0.0.1:3000
+}
+
+# ---- Публичная витрина ----
+booking.example.ru {
+	import bron_proxy
+}
+
+# ---- Админка ----
+admin.example.ru {
+	import bron_proxy
+}

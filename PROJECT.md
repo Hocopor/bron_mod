@@ -18,6 +18,7 @@
 - **Tilda-интеграция → поддомены + ссылки.** `booking.<домен>` (публичные карточки/страницы номеров) и `admin.<домен>` (админка) ведут на VPS. На статических страницах Tilda — обычные кнопки «Забронировать», ведущие на нужную страницу номера/объекта на поддомене. Reverse-proxy «тот же домен» отвергнут (Tilda не любит проксирование, хрупкий DNS/SSL).
 - **«Объект» (Object/PropertyObject в коде)** — группа номеров (по адресу/зданию). В шахматке админки объекты — сворачиваемые группы; в номера сначала создаётся Объект, затем внутри него номера. Удаление Объекта удаляет его номера (cascade).
 - **Мульти-сайт.** Несколько сайтов Tilda на разных доменах → одна админка. **У каждого Объекта свой публичный URL** (`publicUrl`): каждый Tilda-сайт ссылается на «свой» Объект/страницу на поддомене. Одна БД и админка, разные витрины.
+- **Маршруты витрины (решено).** `/o/[objectSlug]` — каталог номеров объекта (это и есть `publicUrl`); `/rooms/[roomSlug]` — карточка номера + бронирование (slug номера уникален глобально); `/` — список активных объектов. **Общего каталога всех номеров нет** (в мульти-сайте он был бы некорректен). Обвязка минимальна: подвал из настроек + настраиваемые кнопки «Назад»/«На главную» на карточке (`nav_back_url`/`nav_home_url`, ведут на Tilda).
 
 ---
 
@@ -26,7 +27,7 @@
 - **Prisma 5 + PostgreSQL 16**. Схема синхронизируется через `prisma db push` (миграций нет / по желанию добавим).
 - **Tailwind CSS**. Иконки `lucide-react`, анимации `framer-motion`, календарь `react-day-picker@9`, формы `react-hook-form` + `zod`, изображения `sharp`.
 - **Авторизация только админ/сотрудник**: собственный JWT (`jose`, HS256, cookie) + `bcryptjs` для хэшей. Пользовательских аккаунтов нет.
-- Деплой: **Docker Compose** (postgres + app), Nginx на VPS для поддоменов + Let's Encrypt SSL.
+- Деплой: **Docker Compose** (postgres + app), **Caddy** на VPS для поддоменов + автоматический Let's Encrypt SSL (без certbot).
 
 Выпилено из донора: `recharts`, `@tiptap/*`, `nodemailer`/email (почтовые уведомления не нужны), VK-уведомления, аналитика, блог/территория/отзывы/услуги. `swiper` — проверить, нужен ли в галерее.
 
@@ -37,19 +38,19 @@
 bron_mod/
   PROJECT.md, LIVE_PLAN.md, TZ.md, CLAUDE.md, README.md
   docker-compose.yml, deploy.sh, .env.example, .gitignore
-  nginx/                      # конфиги поддоменов booking.* / admin.*
+  caddy/Caddyfile             # реверс-прокси поддоменов booking.* / admin.* + авто-SSL
   app/                        # Next.js проект
     prisma/schema.prisma      # модели (§5)
     src/
       app/
-        (public)/             # ВИТРИНА (booking.*): страница объекта, карточка номера + бронирование
+        (public)/             # ВИТРИНА (booking.*): / (список объектов), o/[slug] (каталог объекта), rooms/[slug] (карточка+бронь). layout = SiteFooter из настроек
         admin/                # АДМИНКА (admin.*): bookings, rooms, settings, login
-        api/                  # REST: bookings, admin/*
+        api/                  # REST: bookings, admin/* (objects, rooms, users, account, settings, auth, upload)
       components/
         rooms/                # RoomCard, RoomGallery, BookingForm
         admin/                # AdminBookingsClient (шахматка), AdminRoomsClient, AdminSettingsForm, ...
-        ui/ providers/ layout/
-      lib/                    # db, settings, pricing, utils, admin-auth, email, media
+        ui/ providers/ layout/ (SiteFooter)
+      lib/                    # db, settings, pricing, utils, admin-auth, admin-seed, media, seo
     Dockerfile
 ```
 > Примечание: Next-проект лежит в подпапке `app/` (как у донора); внутри `src/app` — роутер.
@@ -60,7 +61,7 @@ bron_mod/
 **Новое/изменённое относительно донора:**
 - **`PropertyObject` (Объект)** — `id, name, slug, description?, publicUrl, address?, sortOrder, isActive, createdAt, updatedAt`, `rooms Room[]`. Публичная страница объекта = список его номеров.
 - **`Room`** — добавлено `objectId` + relation на PropertyObject (`onDelete: Cascade`). Номера **не захардкожены** — CRUD из админки. **Поля (решено):** name, slug, кратко/полно описание, базовая цена + сезонные периоды, основные/доп. места, площадь, этаж, sortOrder, **свободный список удобств** (`amenities`), галерея, активность, блокировки дат. **Убрано:** seoTitle/seoDescription, 4 булевых флага удобств (hasAC/hasTV/hasFridge/hasPrivateKitchen) — заменены свободным списком.
-- **`AdminUser`** — `id, login, passwordHash (bcrypt), role (ADMIN|STAFF), createdAt`. Главный админ может создавать/удалять сотрудников; сотрудник пароль менять не может. Стартовый супер-админ — из env (`ADMIN_LOGIN`/`ADMIN_PASSWORD_HASH`), остальные — в БД, пароли только в виде хэша.
+- **`AdminUser`** — `id, login, passwordHash (bcrypt), role (ADMIN|STAFF), isActive, createdAt`. Главный админ может создавать/удалять сотрудников; сотрудник пароль менять не может. **Все пользователи (включая главного админа) живут в БД.** Стартовый супер-админ при первом логине «посевается» из env (`ADMIN_LOGIN`/`ADMIN_PASSWORD_HASH`) в таблицу — см. `lib/admin-seed.ts` (`ensureSeedAdmin`). Дальше главный админ меняет свои логин/пароль из «Настроек» через `/api/admin/account`. Пароли — только хэш.
 - **`Booking`** — как у донора (даты, гости, депозит, цена в копейках, `priceBreakdown`, `status`, `paymentStatus`/`paidAt`, отмена, `source`). Статус `BLOCKED` из `BookingStatus` **убран** (по ТЗ не используется).
 - **`RoomPricePeriod`, `BlockedDate`** — без изменений.
 - **`Setting`** — key/value для настроек (§7).
@@ -99,4 +100,4 @@ bron_mod/
 - **Менял `schema.prisma` → на деплое нужен `prisma db push`.**
 - **`force-dynamic`** в layout'ах — БД недоступна при билде; публичные страницы дёргают prisma напрямую. Не снимать без защиты вызовов от билд-времени.
 - **Баг календаря (фикс при порте):** в `BookingForm` дизейблилось `{ before: yesterday }` → вчерашний день оставался выбираемым. Чинить на `{ before: startOfDay(today) }` (+ `fromDate={today}`).
-- **`amenities`** бывает массивом строк ИЛИ объектом-флагами — нормализовать.
+- **`amenities`** бывает массивом строк ИЛИ объектом-флагами (наследие донора) — нормализовать через `normalizeAmenities()` из `lib/utils`.
