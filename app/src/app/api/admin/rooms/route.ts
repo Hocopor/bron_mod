@@ -32,11 +32,10 @@ export async function POST(req: NextRequest) {
   }
 
   const name = String(body.name || '').trim() || 'Новый номер'
-  const baseCapacity = Math.max(1, Number.parseInt(String(body.baseCapacity ?? 2), 10) || 1)
-  const extraCapacity = Math.max(0, Number.parseInt(String(body.extraCapacity ?? 0), 10) || 0)
+  const capacity = Math.max(1, Number.parseInt(String(body.capacity ?? 1), 10) || 1)
 
-  let slug = body.slug ? slugify(String(body.slug)) : slugify(name)
-  // Гарантируем уникальность slug.
+  // slug генерируется автоматически из названия (пользователь его не задаёт).
+  let slug = slugify(name)
   const exists = await prisma.room.findUnique({ where: { slug } })
   if (exists) slug = `${slug}-${Date.now().toString(36).slice(-4)}`
 
@@ -47,9 +46,7 @@ export async function POST(req: NextRequest) {
       slug,
       description: String(body.description || ''),
       shortDescription: String(body.shortDescription || ''),
-      baseCapacity,
-      extraCapacity,
-      capacity: baseCapacity + extraCapacity,
+      capacity,
       area: body.area != null && body.area !== '' ? Number.parseInt(String(body.area), 10) : null,
       floor: body.floor != null && body.floor !== '' ? Number.parseInt(String(body.floor), 10) : null,
       pricePerDay: Math.max(0, Number.parseInt(String(body.pricePerDay ?? 0), 10) || 0),

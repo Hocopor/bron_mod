@@ -138,9 +138,23 @@ export function isAdmin(role?: string | null): boolean {
   return role === 'ADMIN'
 }
 
-export function getRoomCapacityBreakdown(baseCapacity: number, extraCapacity: number): string {
-  const total = Math.max(0, baseCapacity || 0) + Math.max(0, extraCapacity || 0)
-  return `до ${total} чел.`
+// Количество мест в номере — одно число.
+export function getRoomCapacityLabel(capacity: number): string {
+  return `до ${Math.max(0, capacity || 0)} чел.`
+}
+
+// Нормализует домен объекта к голому хосту в нижнем регистре:
+// срезает протокол, путь, порт, www. и хвостовые точки/пробелы.
+export function normalizeDomain(input: string): string {
+  let value = String(input || '').trim().toLowerCase()
+  value = value.replace(/^https?:\/\//, '')
+  value = value.split('/')[0] // путь
+  value = value.split('?')[0]
+  value = value.split('#')[0]
+  value = value.split(':')[0] // порт
+  value = value.replace(/^www\./, '')
+  value = value.replace(/\.+$/, '')
+  return value.trim()
 }
 
 // amenities в БД — свободный список строк (Json). На случай данных-наследия из донора

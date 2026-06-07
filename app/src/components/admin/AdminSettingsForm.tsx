@@ -82,7 +82,6 @@ export function AdminSettingsForm({ settings, currentRole, currentLogin, users }
           <Globe className="h-5 w-5 text-sea-600" /> Контакты и адрес
         </h2>
         <div className="space-y-4">
-          <Field k="site_name" label="Название" />
           <Field k="site_phone" label="Телефон" placeholder="+7 (900) 000-00-00" />
           <Field k="site_email" label="Email" placeholder="mail@example.ru" />
           <Field k="site_address" label="Адрес" />
@@ -96,7 +95,7 @@ export function AdminSettingsForm({ settings, currentRole, currentLogin, users }
               <input value={vals.check_out_time || '12:00'} onChange={(e) => set('check_out_time', e.target.value)} className="input-field" />
             </div>
           </div>
-          <SaveBtn sectionId="contacts" keys={['site_name', 'site_phone', 'site_email', 'site_address', 'check_in_time', 'check_out_time']} />
+          <SaveBtn sectionId="contacts" keys={['site_phone', 'site_email', 'site_address', 'check_in_time', 'check_out_time']} />
         </div>
       </div>
 
@@ -185,11 +184,7 @@ export function AdminSettingsForm({ settings, currentRole, currentLogin, users }
               />
             </div>
           )}
-          <div>
-            <label className="mb-1 block text-xs text-gray-500">Минимальный срок бронирования (ночей)</label>
-            <input type="number" min={1} value={vals.min_booking_days || '1'} onChange={(e) => set('min_booking_days', e.target.value)} className="input-field w-24" />
-          </div>
-          <SaveBtn sectionId="deposit" keys={['deposit_type', 'deposit_percent', 'deposit_fixed', 'min_booking_days']} />
+          <SaveBtn sectionId="deposit" keys={['deposit_type', 'deposit_percent', 'deposit_fixed']} />
         </div>
       </div>
 

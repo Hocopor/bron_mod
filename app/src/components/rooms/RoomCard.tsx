@@ -4,7 +4,7 @@ import { type KeyboardEvent } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { CheckCircle, Maximize2, Users } from 'lucide-react'
-import { formatMoney, formatMoneyRange, getRoomCapacityBreakdown } from '@/lib/utils'
+import { formatMoney, formatMoneyRange, getRoomCapacityLabel } from '@/lib/utils'
 import { RoomImageCarousel } from '@/components/rooms/RoomImageCarousel'
 
 interface Props {
@@ -13,8 +13,6 @@ interface Props {
   shortDescription: string
   images: string[]
   capacity: number
-  baseCapacity: number
-  extraCapacity: number
   area?: number | null
   floor?: number | null
   previewAmenities: string[]
@@ -29,8 +27,6 @@ export function RoomCard({
   shortDescription,
   images,
   capacity,
-  baseCapacity,
-  extraCapacity,
   area,
   floor,
   previewAmenities,
@@ -84,11 +80,7 @@ export function RoomCard({
 
           <div className="mb-4 flex flex-wrap gap-1.5 sm:gap-2">
             <span className="badge-sea">
-              <Users className="h-3 w-3" />{' '}
-              {getRoomCapacityBreakdown(
-                baseCapacity,
-                extraCapacity || Math.max(0, capacity - baseCapacity),
-              )}
+              <Users className="h-3 w-3" /> {getRoomCapacityLabel(capacity)}
             </span>
             {area ? (
               <span className="badge-sea">

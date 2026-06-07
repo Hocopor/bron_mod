@@ -12,15 +12,14 @@ datasource db {
 
 // ========== ОБЪЕКТЫ (группы номеров) ==========
 
-// «Объект» — группа номеров по адресу/зданию. В шахматке админки — сворачиваемая группа.
-// У каждого объекта свой публичный URL (под свой сайт Tilda).
+// «Объект» — группа номеров (по адресу/зданию). Сущность ВНУТРЕННЯЯ: гость её не видит.
+// У каждого объекта свой публичный домен (поддомен): визит на него = список номеров объекта.
+// `domain` — голый хост в нижнем регистре, напр. `nomera.example.ru` (без протокола/пути).
 model PropertyObject {
   id          String   @id @default(cuid())
-  name        String
-  slug        String   @unique
-  description String?  @db.Text
-  address     String?
-  publicUrl   String?  // куда ведёт «своя» кнопка с сайта Tilda этого объекта
+  name        String   // внутреннее имя для админки
+  domain      String?  @unique // публичный домен объекта (поддомен, направленный на VPS)
+  address     String?  // внутренняя пометка, чтобы различать объекты
   isActive    Boolean  @default(true)
   sortOrder   Int      @default(0)
   rooms       Room[]
@@ -37,12 +36,10 @@ model Room {
   objectId         String
   object           PropertyObject @relation(fields: [objectId], references: [id], onDelete: Cascade)
   name             String
-  slug             String   @unique
+  slug             String   @unique // генерируется автоматически из названия
   description      String   @db.Text
   shortDescription String
-  baseCapacity     Int      @default(1)
-  extraCapacity    Int      @default(0)
-  capacity         Int      // max гостей (base + extra)
+  capacity         Int      @default(1) // количество мест в номере (одно поле)
   area             Int?     // м²
   floor            Int?
   pricePerDay      Int      // копейки

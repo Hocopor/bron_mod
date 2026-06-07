@@ -205,9 +205,6 @@ img {
   animation: bubble-rise linear infinite;
 }
 
-/* Swiper */
-.swiper-pagination-bullet-active { background: #e8735a !important; }
-.swiper-button-next, .swiper-button-prev { color: #1a6b8a !important; }
 
 /* TipTap editor */
 .ProseMirror {

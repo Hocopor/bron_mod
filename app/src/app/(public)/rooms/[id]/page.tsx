@@ -7,7 +7,7 @@ import { getRoomPriceRange, normalizeRoomPricePeriods } from '@/lib/pricing'
 import {
   formatMoney,
   formatMoneyRange,
-  getRoomCapacityBreakdown,
+  getRoomCapacityLabel,
   normalizeAmenities,
 } from '@/lib/utils'
 import { BookingForm } from '@/components/rooms/BookingForm'
@@ -29,7 +29,7 @@ async function getRoomData(slug: string) {
     prisma.room.findUnique({
       where: { slug, isActive: true },
       include: {
-        object: { select: { slug: true, name: true } },
+        object: { select: { name: true } },
         pricePeriods: { orderBy: { dateFrom: 'asc' } },
         blockedDates: { where: { dateTo: { gte: new Date() } } },
         bookings: {
@@ -75,15 +75,13 @@ export default async function RoomDetailPage({ params }: Props) {
   const normalizedPricePeriods = normalizeRoomPricePeriods(room.pricePeriods || [])
   const priceRange = getRoomPriceRange(room.pricePerDay, normalizedPricePeriods)
   const customAmenities = normalizeAmenities(room.amenities)
-  const capacityLabel = getRoomCapacityBreakdown(
-    room.baseCapacity ?? room.capacity,
-    room.extraCapacity ?? 0,
-  )
+  const capacityLabel = getRoomCapacityLabel(room.capacity)
   const documents = buildBookingDocuments(settings)
 
-  // Кнопка «Назад»: настраиваемый URL (Tilda) или каталог объекта на витрине.
-  const backUrl = settings.nav_back_url || `/o/${room.object.slug}`
-  const homeUrl = settings.nav_home_url || `/o/${room.object.slug}`
+  // Кнопки «Назад»/«На главную»: настраиваемые URL из админки (обычно — Tilda),
+  // иначе — корень домена объекта (список его номеров).
+  const backUrl = settings.nav_back_url || '/'
+  const homeUrl = settings.nav_home_url || '/'
 
   return (
     <div className="min-h-screen bg-sand-50">

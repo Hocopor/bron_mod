@@ -2,18 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { verifyAdminRequest } from '@/lib/admin-auth'
 import { prisma } from '@/lib/db'
+import { normalizeDomain } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
-
-function slugify(input: string): string {
-  return input
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9а-яё\s-]/gi, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .slice(0, 60) || `object-${Date.now()}`
-}
 
 export async function GET(req: NextRequest) {
   if (!await verifyAdminRequest(req)) {
@@ -26,7 +17,8 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(objects)
 }
 
-// Создание Объекта (группы номеров).
+// Создание Объекта (группы номеров). Объект — внутренняя сущность; публичная
+// привязка идёт через `domain` (поддомен, направленный на VPS).
 export async function POST(req: NextRequest) {
   if (!await verifyAdminRequest(req)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -37,17 +29,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Укажите название объекта.' }, { status: 400 })
   }
 
-  let slug = body.slug ? slugify(String(body.slug)) : slugify(name)
-  const exists = await prisma.propertyObject.findUnique({ where: { slug } })
-  if (exists) slug = `${slug}-${Date.now().toString(36).slice(-4)}`
+  const domain = body.domain ? normalizeDomain(String(body.domain)) : null
+  if (domain) {
+    const exists = await prisma.propertyObject.findUnique({ where: { domain } })
+    if (exists) {
+      return NextResponse.json({ error: 'Этот домен уже привязан к другому объекту.' }, { status: 409 })
+    }
+  }
 
   const object = await prisma.propertyObject.create({
     data: {
       name,
-      slug,
-      description: body.description ? String(body.description) : null,
+      domain,
       address: body.address ? String(body.address) : null,
-      publicUrl: body.publicUrl ? String(body.publicUrl) : null,
       isActive: body.isActive ?? true,
       sortOrder: Number.parseInt(String(body.sortOrder ?? 0), 10) || 0,
     },

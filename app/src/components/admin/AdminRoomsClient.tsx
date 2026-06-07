@@ -22,14 +22,14 @@ import {
   ArrowDown,
   ImageIcon,
   Building2,
-  ExternalLink,
+  Globe,
 } from 'lucide-react'
 import {
   formatMoney,
   formatDate,
   getBookingStatusColor,
   getBookingStatusLabel,
-  getRoomCapacityBreakdown,
+  getRoomCapacityLabel,
   normalizeAmenities,
 } from '@/lib/utils'
 import {
@@ -69,8 +69,6 @@ interface Room {
   slug: string
   description: string
   shortDescription: string
-  baseCapacity: number
-  extraCapacity: number
   capacity: number
   area: number | null
   floor: number | null
@@ -88,10 +86,8 @@ interface Room {
 interface PropertyObject {
   id: string
   name: string
-  slug: string
-  description: string | null
+  domain: string | null
   address: string | null
-  publicUrl: string | null
   isActive: boolean
   sortOrder: number
   _count: { rooms: number }
@@ -128,10 +124,8 @@ function isPricePeriodComplete(period: EditableRoomPricePeriod): boolean {
 type ObjectDraft = {
   id?: string
   name: string
-  slug: string
+  domain: string
   address: string
-  publicUrl: string
-  description: string
   sortOrder: string
 }
 
@@ -167,16 +161,14 @@ export function AdminRoomsClient({ objects }: { objects: PropertyObject[] }) {
   // =================== Объекты ===================
 
   const startCreateObject = () =>
-    setObjectDraft({ name: '', slug: '', address: '', publicUrl: '', description: '', sortOrder: '0' })
+    setObjectDraft({ name: '', domain: '', address: '', sortOrder: '0' })
 
   const startEditObject = (object: PropertyObject) =>
     setObjectDraft({
       id: object.id,
       name: object.name,
-      slug: object.slug,
+      domain: object.domain ?? '',
       address: object.address ?? '',
-      publicUrl: object.publicUrl ?? '',
-      description: object.description ?? '',
       sortOrder: String(object.sortOrder),
     })
 
@@ -195,10 +187,8 @@ export function AdminRoomsClient({ objects }: { objects: PropertyObject[] }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: objectDraft.name,
-          slug: objectDraft.slug || undefined,
+          domain: objectDraft.domain,
           address: objectDraft.address,
-          publicUrl: objectDraft.publicUrl,
-          description: objectDraft.description,
           sortOrder: parseInt(objectDraft.sortOrder || '0', 10) || 0,
         }),
       })
@@ -239,12 +229,10 @@ export function AdminRoomsClient({ objects }: { objects: PropertyObject[] }) {
     setPricePeriodsError(null)
     setEditForm({
       name: '',
-      slug: '',
       shortDescription: '',
       description: '',
       pricePerDay: 0,
-      baseCapacity: 2,
-      extraCapacity: 0,
+      capacity: 2,
       area: '',
       floor: '',
       sortOrder: 0,
@@ -261,12 +249,10 @@ export function AdminRoomsClient({ objects }: { objects: PropertyObject[] }) {
     setEditForm({
       objectId: room.objectId,
       name: room.name,
-      slug: room.slug,
       shortDescription: room.shortDescription,
       description: room.description,
       pricePerDay: Math.round(room.pricePerDay / 100),
-      baseCapacity: room.baseCapacity ?? room.capacity,
-      extraCapacity: room.extraCapacity ?? 0,
+      capacity: room.capacity,
       area: room.area ?? '',
       floor: room.floor ?? '',
       sortOrder: room.sortOrder,
@@ -314,7 +300,7 @@ export function AdminRoomsClient({ objects }: { objects: PropertyObject[] }) {
   const handleRoomImageUpload = async (files: File[]) => {
     setSavingId('room-images')
     try {
-      const folder = `rooms/${editForm.slug || 'new'}`
+      const folder = `rooms/${roomModal?.room?.slug || roomModal?.room?.id || 'new'}`
       const uploaded = await uploadFiles(files, folder)
       setEditForm((prev) => ({ ...prev, images: [...(prev.images || []), ...uploaded] }))
       success(`Загружено файлов: ${uploaded.length}`)
@@ -397,12 +383,10 @@ export function AdminRoomsClient({ objects }: { objects: PropertyObject[] }) {
 
     const basePayload = {
       name: editForm.name,
-      slug: editForm.slug || undefined,
       shortDescription: editForm.shortDescription,
       description: editForm.description,
       pricePerDay: parseInt(editForm.pricePerDay || '0', 10) * 100,
-      baseCapacity: Math.max(0, parseInt(editForm.baseCapacity || '1', 10) || 0),
-      extraCapacity: Math.max(0, parseInt(editForm.extraCapacity || '0', 10) || 0),
+      capacity: Math.max(1, parseInt(editForm.capacity || '1', 10) || 1),
       area: editForm.area === '' ? null : parseInt(editForm.area || '0', 10),
       floor: editForm.floor === '' ? null : parseInt(editForm.floor || '0', 10),
       sortOrder: parseInt(editForm.sortOrder || '0', 10) || 0,
@@ -566,22 +550,23 @@ export function AdminRoomsClient({ objects }: { objects: PropertyObject[] }) {
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-2">
                       <span className="badge bg-gray-100 text-gray-600">{object._count.rooms} номеров</span>
-                      <span className="badge bg-gray-100 text-gray-600">slug: {object.slug}</span>
+                      {object.domain ? (
+                        <a
+                          href={`https://${object.domain}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="badge inline-flex items-center gap-1 bg-sea-50 text-sea-700 hover:underline"
+                        >
+                          <Globe className="h-3 w-3" /> {object.domain}
+                        </a>
+                      ) : (
+                        <span className="badge bg-amber-100 text-amber-700">домен не задан</span>
+                      )}
                       <span className={`badge ${object.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
                         {object.isActive ? 'Активен' : 'Скрыт'}
                       </span>
                       {object.address && <span className="text-xs text-gray-400">{object.address}</span>}
-                      {object.publicUrl && (
-                        <a
-                          href={object.publicUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          className="inline-flex items-center gap-1 text-xs text-sea-600 hover:underline"
-                        >
-                          <ExternalLink className="h-3 w-3" /> публичная ссылка
-                        </a>
-                      )}
                     </div>
                   </div>
                 </button>
@@ -647,7 +632,7 @@ export function AdminRoomsClient({ objects }: { objects: PropertyObject[] }) {
                 <h3 className="font-semibold text-gray-900">{room.name}</h3>
                 <div className="mt-1 flex flex-wrap gap-2">
                   <span className="badge-sea">
-                    <Users className="h-3 w-3" /> {getRoomCapacityBreakdown(room.baseCapacity ?? room.capacity, room.extraCapacity ?? 0)}
+                    <Users className="h-3 w-3" /> {getRoomCapacityLabel(room.capacity)}
                   </span>
                   <span className="badge bg-sand-200 text-sand-800">
                     {priceRange.hasRange
@@ -657,7 +642,6 @@ export function AdminRoomsClient({ objects }: { objects: PropertyObject[] }) {
                   {room.pricePeriods.length > 0 && (
                     <span className="badge bg-blue-100 text-blue-700">{room.pricePeriods.length} периодов цен</span>
                   )}
-                  <span className="badge bg-gray-100 text-gray-600">slug: {room.slug}</span>
                   <span className={`badge ${room.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
                     {room.isActive ? 'Активен' : 'Скрыт'}
                   </span>
@@ -811,24 +795,19 @@ export function AdminRoomsClient({ objects }: { objects: PropertyObject[] }) {
 
           <div className="space-y-4">
             <div>
-              <label className="mb-1 block text-xs text-gray-500">Название *</label>
-              <input value={objectDraft.name} onChange={(e) => setObjectDraft({ ...objectDraft, name: e.target.value })} className="input-field" />
+              <label className="mb-1 block text-xs text-gray-500">Название (внутреннее, для админки) *</label>
+              <input value={objectDraft.name} onChange={(e) => setObjectDraft({ ...objectDraft, name: e.target.value })} className="input-field" placeholder="Например: Корпус на ул. Морской" />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-gray-500">Slug / URL (необязательно — создастся из названия)</label>
-              <input value={objectDraft.slug} onChange={(e) => setObjectDraft({ ...objectDraft, slug: e.target.value })} className="input-field" placeholder="используется в адресе /o/..." />
+              <label className="mb-1 block text-xs text-gray-500">Домен (поддомен для гостей)</label>
+              <input value={objectDraft.domain} onChange={(e) => setObjectDraft({ ...objectDraft, domain: e.target.value })} className="input-field" placeholder="nomera.example.ru" />
+              <p className="mt-1 text-xs text-gray-400">
+                Направьте этот поддомен (A-запись DNS) на IP сервера. По нему сразу откроется список номеров объекта. Без протокола и пути — только хост.
+              </p>
             </div>
             <div>
-              <label className="mb-1 block text-xs text-gray-500">Адрес</label>
+              <label className="mb-1 block text-xs text-gray-500">Адрес (внутренняя пометка)</label>
               <input value={objectDraft.address} onChange={(e) => setObjectDraft({ ...objectDraft, address: e.target.value })} className="input-field" />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-gray-500">Публичная ссылка (URL «своей» кнопки с сайта Tilda)</label>
-              <input value={objectDraft.publicUrl} onChange={(e) => setObjectDraft({ ...objectDraft, publicUrl: e.target.value })} className="input-field" placeholder="https://booking.example.ru/o/..." />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-gray-500">Описание</label>
-              <textarea value={objectDraft.description} onChange={(e) => setObjectDraft({ ...objectDraft, description: e.target.value })} rows={3} className="input-field resize-none" />
             </div>
             <div>
               <label className="mb-1 block text-xs text-gray-500">Сортировка</label>
@@ -876,10 +855,6 @@ export function AdminRoomsClient({ objects }: { objects: PropertyObject[] }) {
               <div>
                 <label className="mb-1 block text-xs text-gray-500">Название</label>
                 <input value={editForm.name} onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))} className="input-field" />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs text-gray-500">Slug / URL (необязательно)</label>
-                <input value={editForm.slug} onChange={(e) => setEditForm((prev) => ({ ...prev, slug: e.target.value }))} className="input-field" />
               </div>
               <div>
                 <label className="mb-1 block text-xs text-gray-500">Короткое описание</label>
@@ -935,17 +910,11 @@ export function AdminRoomsClient({ objects }: { objects: PropertyObject[] }) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="mb-1 block text-xs text-gray-500">Основные места</label>
-                  <input type="number" min={0} value={editForm.baseCapacity} onChange={(e) => setEditForm((prev) => ({ ...prev, baseCapacity: e.target.value }))} className="input-field" />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs text-gray-500">Дополнительные места</label>
-                  <input type="number" min={0} value={editForm.extraCapacity} onChange={(e) => setEditForm((prev) => ({ ...prev, extraCapacity: e.target.value }))} className="input-field" />
-                </div>
-              </div>
               <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="mb-1 block text-xs text-gray-500">Количество мест</label>
+                  <input type="number" min={1} value={editForm.capacity} onChange={(e) => setEditForm((prev) => ({ ...prev, capacity: e.target.value }))} className="input-field" />
+                </div>
                 <div>
                   <label className="mb-1 block text-xs text-gray-500">Площадь (м²)</label>
                   <input type="number" min={0} value={editForm.area} onChange={(e) => setEditForm((prev) => ({ ...prev, area: e.target.value }))} className="input-field" />
