@@ -39,7 +39,7 @@ services:
     networks:
       - internal
     ports:
-      - "127.0.0.1:3001:3000"   # наружу отдаёт Caddy (см. caddy/Caddyfile)
+      - "127.0.0.1:3015:3000"   # наружу отдаёт Caddy (см. caddy/Caddyfile)
     volumes:
       - uploads:/app/uploads
     healthcheck:
