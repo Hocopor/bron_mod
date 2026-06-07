@@ -183,7 +183,7 @@ docker compose logs -f app
 ```
 Дождитесь в логах строки `Starting Next.js...` и что контейнер `healthy`. Проверка изнутри:
 ```bash
-curl -I http://127.0.0.1:3000
+curl -I http://127.0.0.1:3001
 ```
 Должен ответить `HTTP/1.1 200` или `307` (редирект) — приложение живо.
 
@@ -268,7 +268,7 @@ docker compose exec postgres pg_dump -U bron bron_mod > /opt/backup_$(date +%F).
 
 - **Caddy не выпускает сертификат** → проверьте, что DNS-записи (шаг 0) уже указывают на `ВАШ_IP`
   (`nslookup booking.ВАШ-ДОМЕН.ru`) и что порты 80/443 открыты (шаг 2). Логи: `journalctl -u caddy -f`.
-- **502 Bad Gateway** → приложение не поднялось. Смотрите `docker compose logs -f app` и `curl -I http://127.0.0.1:3000`.
+- **502 Bad Gateway** → приложение не поднялось. Смотрите `docker compose logs -f app` и `curl -I http://127.0.0.1:3001`.
 - **Админка пускает на витрину / наоборот** → проверьте `ADMIN_DOMAIN` в `.env` (должен совпадать с `admin.ВАШ-ДОМЕН.ru`), после правки `.env` — `docker compose up -d`.
 - **Не входит главный админ** → проверьте `ADMIN_LOGIN` и что `ADMIN_PASSWORD_HASH` — это именно bcrypt-хэш от вашего пароля (шаг 7.1), а не сам пароль.
 ```
