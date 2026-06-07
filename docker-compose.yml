@@ -29,13 +29,10 @@ services:
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
+    env_file:
+      - .env
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-bron}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-bron_mod}
-      ADMIN_DOMAIN: ${ADMIN_DOMAIN}
-      ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET}
-      ADMIN_LOGIN: ${ADMIN_LOGIN}
-      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH}
-      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-bron}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-bron_mod}"
     depends_on:
       postgres:
         condition: service_healthy
